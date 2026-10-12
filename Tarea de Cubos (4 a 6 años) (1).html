@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tarea de Cubos (4 a 6 años)</title>
+<style>
+:root{--bg:#fafaf7;--fg:#222;--card:#fff;--ln:#888;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1b1b1a;--fg:#eee;--card:#262625;--ln:#aaa}}
+:root[data-theme="dark"]{--bg:#1b1b1a;--fg:#eee;--card:#262625;--ln:#aaa}
+html,body{margin:0}body{background:var(--bg);color:var(--fg);font-family:system-ui,Arial,sans-serif;padding:14px;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+.w{max-width:780px;margin:0 auto}.card{background:var(--card);border-radius:14px;padding:16px;margin:12px 0;box-shadow:0 1px 4px #0003}
+button{font-size:1.1rem;padding:12px 22px;border-radius:10px;border:0;background:#2a7;color:#fff;cursor:pointer}
+button.g2{background:#777}
+input,select,textarea{font-size:1rem;padding:9px;border-radius:6px;border:1px solid var(--ln);background:var(--bg);color:var(--fg);width:100%;box-sizing:border-box;margin:4px 0;-webkit-user-select:text;user-select:text}
+.row{display:flex;gap:26px;flex-wrap:wrap;justify-content:center;align-items:flex-start}
+.g{display:grid;border:3px solid var(--ln);width:max-content}.g div{border:1px solid #888}
+.lbl{text-align:center;font-weight:700;margin-bottom:6px}
+.pal{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:14px 0}
+.pal div{width:60px;height:60px;border:3px solid var(--ln);border-radius:6px;cursor:pointer}
+.pal div.on{outline:5px solid #27f;outline-offset:2px}
+.hide{display:none}.c{text-align:center}
+table{border-collapse:collapse;width:100%;font-size:.8rem}td,th{border-bottom:1px solid var(--ln);padding:3px;text-align:center}
+.s{overflow-x:auto}
+</style></head><body><div class="w">
+<div id="ini" class="card">
+<h2>Tarea de Cubos · 4 a 6 años</h2>
+<p>Tarea experimental original (paradigma de diseño con cubos). No es el WPPSI-IV ni tiene normas. Aplicación guiada por un examinador.</p>
+<input id="cod" placeholder="Código del participante (sin nombre)">
+<select id="edad"><option value="">Edad (años)</option><option>4</option><option>5</option><option>6</option></select>
+<p><b>Examinador:</b> di al niño: "Mira este dibujo. Haz uno igual aquí abajo. Escoge un cubo y tócalo donde va." Hay 1 ensayo de práctica (2 intentos) y 17 ítems (1 intento cada uno, 29 puntos como máximo). Se suspende al acumular 2 errores. Al presionar Comenzar, los ítems avanzan solos y el tiempo corre desde que aparece el modelo. Usa <b>Terminar ítem</b> solo si el niño se rinde.</p>
+<button onclick="go()">Comenzar práctica</button></div>
+
+<div id="juego" class="card hide">
+<div class="c" id="tit" style="font-weight:700;margin-bottom:6px"></div>
+<div id="barw" style="height:10px;background:#8883;border-radius:6px"><div id="bar" style="height:100%;width:100%;background:#2a7;border-radius:6px"></div></div>
+<div class="row" style="margin-top:12px"><div><div class="lbl">Modelo</div><div id="mod"></div></div>
+<div><div class="lbl">Tu diseño</div><div id="con"></div></div></div>
+<div class="pal" id="pal"></div>
+<p class="c"><button id="fn" class="g2 hide" onclick="fin(false,'manual')">Terminar ítem</button></p></div>
+
+<div id="sig" class="card hide c"><p id="msg" style="font-size:1.3rem"></p></div>
+
+<div id="res" class="card hide"><h3>Resultados</h3><div id="tot"></div><div class="s"><table id="tab"></table></div>
+<p>CSV (selecciona y copia):</p><textarea id="csv" rows="7" readonly></textarea>
+<button onclick="cp()">Copiar CSV</button></div>
+</div>
+<script>
+const R='#f5c400',W='#fff',AN=[135,225,315,45];
+// 0 vacío, 1 rojo, 2 blanco, 3-6 mitad diagonal en 4 orientaciones
+// Límites de tiempo provisionales: calibrar con piloto
+const L=[
+{p:1,n:2,m:[1,1,1,2]},
+{r:1,c:2,t:30,pt:1,m:[1,1]},{r:2,c:1,t:30,pt:1,m:[1,2]},{r:1,c:3,t:30,pt:1,m:[2,2,1]},
+{r:1,c:3,t:30,pt:1,m:[1,2,1]},{n:2,t:30,pt:1,m:[2,1,2,2]},
+{n:2,t:60,m:[1,2,1,2]},{n:2,t:60,m:[1,1,2,2]},{n:2,t:60,m:[1,2,2,1]},
+{n:2,t:60,m:[2,1,6,1]},{n:2,t:60,m:[3,2,2,5]},
+{n:2,t:90,m:[4,1,2,6]},{n:2,t:90,m:[3,4,3,4]},{n:2,t:90,m:[3,5,6,4]},{n:2,t:90,m:[5,6,4,3]},
+{n:3,t:120,m:[1,2,1,2,1,2,1,2,1]},{n:3,t:120,m:[1,1,2,1,1,2,2,2,1]},
+{n:3,t:120,m:[3,2,4,2,1,2,5,2,6]}];
+L.forEach(x=>{x.r=x.r||x.n;x.c=x.c||x.n});
+let i=-1,att=1,retry=false,fails=0,log=[],cur=[],sel=1,t0=0,tF=null,seq=[],pl=0,cr=0,run=false,done=false,tmr;
+const $=id=>document.getElementById(id);
+function bg(s){return s==0?'transparent':s==1?R:s==2?W:`linear-gradient(${AN[s-3]}deg,${R} 50%,${W} 50%)`}
+function draw(el,arr,r,c,click){const z=(r>2||c>2)?76:100;el.innerHTML='';el.className='g';el.style.gridTemplateColumns=`repeat(${c},${z}px)`;
+arr.forEach((s,k)=>{const d=document.createElement('div');d.style.cssText=`width:${z}px;height:${z}px;background:${bg(s)}`;
+if(click)d.onclick=()=>put(k);el.appendChild(d)})}
+function pal(){const p=$('pal');p.innerHTML='';[1,2,3,4,5,6].forEach(s=>{const d=document.createElement('div');d.style.background=bg(s);d.className=s==sel?'on':'';d.onclick=()=>{sel=s;pal()};p.appendChild(d)})}
+function show(a){['ini','juego','sig','res'].forEach(x=>$(x).classList.toggle('hide',x!=a));if(a=='sig')setTimeout(go,900)}
+function go(){const rt=retry;retry=false;i++;if(!rt)att=1;if(i>=L.length||fails>=2)return results();const it=L[i];
+cur=Array(it.r*it.c).fill(0);sel=1;seq=[];pl=0;cr=0;tF=null;done=false;run=false;clearInterval(tmr);
+show('juego');$('tit').textContent=it.p?'Práctica · intento '+att:'Ítem '+i+' de '+(L.length-1);
+$('barw').classList.toggle('hide',!!it.p);$('bar').style.width='100%';
+draw($('mod'),it.m,it.r,it.c,false);draw($('con'),cur,it.r,it.c,true);pal();iniciar()}
+function iniciar(){run=true;t0=Date.now();$('fn').classList.remove('hide');const it=L[i];
+if(!it.p)tmr=setInterval(()=>{const r=it.t-(Date.now()-t0)/1000;$('bar').style.width=Math.max(0,100*r/it.t)+'%';if(r<=0)fin(false,'tiempo')},150)}
+function put(k){if(!run||done)return;const t=Date.now()-t0,it=L[i];if(tF===null)tF=t;
+if(cur[k]==sel)return;if(cur[k]!=0)cr++;pl++;cur[k]=sel;seq.push(k+':'+sel+'@'+t);
+draw($('con'),cur,it.r,it.c,true);if(cur.every((v,j)=>v==it.m[j]))fin(true,'correcto')}
+function fin(ok,why){if(done||!run)return;done=true;clearInterval(tmr);const it=L[i];
+if(it.p){if(!ok&&att==1){att=2;retry=true;i--;$('msg').textContent='Intentemos otra vez.';return show('sig')}$('msg').textContent=ok?'¡Muy bien!':'Vamos a empezar.';return show('sig')}
+const t=((Date.now()-t0)/1000).toFixed(1);fails=ok?fails:fails+1;
+log.push({codigo:$('cod').value||'s/d',edad:$('edad').value||'s/d',item:i,tam:it.r+'x'+it.c,limite_s:it.t,ok:ok?1:0,motivo:why,seg:t,seg_1er_toque:tF===null?'':(tF/1000).toFixed(1),colocaciones:pl,correcciones:cr,puntos:ok?(it.pt||2):0,estado_final:cur.join(''),secuencia:seq.join(' ')});
+if(fails>=2||i==L.length-1)return results();$('msg').textContent=ok?'¡Muy bien!':'Vamos con el siguiente.';show('sig')}
+function results(){clearInterval(tmr);show('res');const p=log.reduce((a,x)=>a+x.puntos,0);
+$('tot').innerHTML=`<p><b>${$('cod').value||'s/d'}</b> (${$('edad').value||'edad s/d'} años) · Puntaje bruto: <b>${p}</b> / ${L.slice(1).reduce((a,x)=>a+(x.pt||2),0)} · Aciertos: ${log.filter(x=>x.ok).length}${fails>=2?' · Suspendida por 2 errores':''}</p>`;
+if(!log.length){$('tab').innerHTML='';$('csv').value='';return}
+const k=Object.keys(log[0]);$('tab').innerHTML='<tr>'+k.map(x=>`<th>${x}</th>`).join('')+'</tr>'+log.map(r=>'<tr>'+k.map(x=>`<td>${r[x]}</td>`).join('')+'</tr>').join('');
+$('csv').value=k.join(',')+'\n'+log.map(r=>k.map(x=>r[x]).join(',')).join('\n')}
+function cp(){const t=$('csv');t.select();try{document.execCommand('copy')}catch(e){}}
+</script></body></html>
